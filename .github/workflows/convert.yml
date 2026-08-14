@@ -97,16 +97,22 @@ jobs:
         run: |
           mkdir -p models
           cd models
-          echo "Downloading from ${{ github.event.inputs.onnx_model_url }}..."
-          curl -L -O "${{ github.event.inputs.onnx_model_url }}"
-          if [ $? -ne 0 ]; then
+          MODEL_URL="${{ github.event.inputs.onnx_model_url }}"
+          DOWNLOAD_URL="$MODEL_URL"
+          if [[ "$MODEL_URL" =~ ^https://drive\.google\.com/file/d/([^/]+)/ ]]; then
+            DRIVE_FILE_ID="${BASH_REMATCH[1]}"
+            DOWNLOAD_URL="https://drive.google.com/uc?export=download&id=$DRIVE_FILE_ID"
+          fi
+
+          DOWNLOADED_FILENAME="model.onnx"
+          echo "Downloading from $MODEL_URL..."
+          if ! curl -fL "$DOWNLOAD_URL" -o "$DOWNLOADED_FILENAME"; then
             echo "::error::Failed to download ONNX model."
             exit 1
           fi
 
-          DOWNLOADED_FILENAME=$(ls *.onnx | head -n 1)
-          if [ -z "$DOWNLOADED_FILENAME" ]; then
-            echo "::error::Could not find downloaded .onnx file in models/ directory."
+          if file "$DOWNLOADED_FILENAME" | grep -qi 'HTML document'; then
+            echo "::error::Downloaded file is HTML, not an ONNX model. Please provide a direct download URL."
             exit 1
           fi
 
