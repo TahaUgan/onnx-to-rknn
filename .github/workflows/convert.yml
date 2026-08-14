@@ -97,11 +97,18 @@ jobs:
         run: |
           mkdir -p models
           cd models
-          echo "Downloading from ${{ github.event.inputs.onnx_model_url }}..."
-          curl -L -O "${{ github.event.inputs.onnx_model_url }}"
-          if [ $? -ne 0 ]; then
-            echo "::error::Failed to download ONNX model."
-            exit 1
+          MODEL_URL="${{ github.event.inputs.onnx_model_url }}"
+          echo "Downloading from ${MODEL_URL}..."
+
+          if [[ "$MODEL_URL" == *"drive.google.com"* ]]; then
+            python3 -m pip install --quiet gdown
+            python3 -m gdown --fuzzy "$MODEL_URL" --output downloaded_model.onnx
+          else
+            OUTPUT_FILENAME=$(basename "${MODEL_URL%%\?*}")
+            if [[ "$OUTPUT_FILENAME" != *.onnx ]]; then
+              OUTPUT_FILENAME="downloaded_model.onnx"
+            fi
+            curl -L --fail -o "$OUTPUT_FILENAME" "$MODEL_URL"
           fi
 
           DOWNLOADED_FILENAME=$(ls *.onnx | head -n 1)
